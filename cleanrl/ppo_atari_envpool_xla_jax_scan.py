@@ -86,6 +86,8 @@ class Args:
     """the maximum norm for the gradient clipping"""
     target_kl: float = None
     """the target KL divergence threshold"""
+    reset_type: str = "None"
+    """Type of reset"""
 
     # to be filled in runtime
     batch_size: int = 0
@@ -234,7 +236,7 @@ if __name__ == "__main__":
     )
     handle, recv, send, step_env = envs.xla()
 
-    def step_env_wrappeed(episode_stats, handle, action):
+    def step_env_wrapped(episode_stats, handle, action):
         handle, (next_obs, reward, next_done, info) = step_env(handle, action)
         new_episode_return = episode_stats.episode_returns + info["reward"]
         new_episode_length = episode_stats.episode_lengths + 1
@@ -374,6 +376,18 @@ if __name__ == "__main__":
 
     ppo_loss_grad_fn = jax.value_and_grad(ppo_loss, has_aux=True)
 
+    @partial(jax.jit, static_argnums=(1,))
+    def reset_state(
+        agent_state: TrainState,
+        reset_type: str
+    ):
+        opt_state = agent_state.opt_state
+        if reset_type == "count":
+            opt_state = (opt_state[0], (opt_state[1][0]._replace(count=0), opt_state[1][1]))
+        elif reset_type == "all":
+            opt_state = jax.tree_map(jnp.zeros_like, opt_state)
+        return agent_state.replace(opt_state=opt_state)
+
     @jax.jit
     def update_ppo(
         agent_state: TrainState,
@@ -413,6 +427,7 @@ if __name__ == "__main__":
             )
             return (agent_state, key), (loss, pg_loss, v_loss, entropy_loss, approx_kl, grads)
 
+        agent_state = reset_state(agent_state, args.reset_type)
         (agent_state, key), (loss, pg_loss, v_loss, entropy_loss, approx_kl, grads) = jax.lax.scan(
             update_epoch, (agent_state, key), (), length=args.update_epochs
         )
@@ -448,7 +463,7 @@ if __name__ == "__main__":
         )
         return agent_state, episode_stats, next_obs, next_done, storage, key, handle
 
-    rollout = partial(rollout, step_once_fn=partial(step_once, env_step_fn=step_env_wrappeed), max_steps=args.num_steps)
+    rollout = partial(rollout, step_once_fn=partial(step_once, env_step_fn=step_env_wrapped), max_steps=args.num_steps)
 
     for iteration in range(1, args.num_iterations + 1):
         iteration_time_start = time.time()
