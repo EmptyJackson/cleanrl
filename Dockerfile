@@ -8,10 +8,11 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # install python dependencies
 RUN mkdir cleanrl_utils && touch cleanrl_utils/__init__.py
-RUN pip install poetry --upgrade
-COPY pyproject.toml pyproject.toml
-COPY poetry.lock poetry.lock
-RUN poetry install
+ARG $ENV_REQS
+RUN pip install -r $ENV_REQS
+ARG $JAX_REQS
+RUN pip install -r $JAX_REQS
+RUN pip install --upgrade "jax[cuda]==0.3.17" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 # install mujoco_py
 RUN apt-get -y install wget unzip software-properties-common \
