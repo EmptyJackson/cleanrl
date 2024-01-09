@@ -15,9 +15,8 @@ for gpu in $gpus; do
         --gpus device=$gpu \
         -e WANDB_API_KEY=$WANDB_API_KEY \
         --name jax_atari_$gpu \
-        --user $(id -u) \
         --rm \
-	    -d \
+        -d \
         -t jax_atari \
         /bin/bash -c "$script_and_args"
 done

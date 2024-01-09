@@ -381,11 +381,12 @@ if __name__ == "__main__":
         agent_state: TrainState,
         reset_type: str
     ):
-        opt_state = agent_state.opt_state
+        inner_state = agent_state.opt_state[1].inner_state
         if reset_type == "count":
-            opt_state = (opt_state[0], (opt_state[1][0]._replace(count=0), opt_state[1][1]))
+            inner_state = (inner_state[0]._replace(count=0), inner_state[1])
         elif reset_type == "all":
-            opt_state = jax.tree_map(jnp.zeros_like, opt_state)
+            inner_state = jax.tree_map(jnp.zeros_like, inner_state)
+        opt_state = (agent_state.opt_state[0], agent_state.opt_state[1]._replace(inner_state=inner_state))
         return agent_state.replace(opt_state=opt_state)
 
     @jax.jit

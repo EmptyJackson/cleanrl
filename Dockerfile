@@ -23,8 +23,9 @@ RUN apt-get -y install wget unzip software-properties-common \
 # RUN poetry run python -c "import mujoco_py"
 
 COPY entrypoint.sh /usr/local/bin/
-RUN chmod 777 /usr/local/bin/entrypoint.sh
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# RUN chmod 777 /usr/local/bin/entrypoint.sh
+# ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # copy local files
 COPY ./cleanrl /cleanrl
+WORKDIR /cleanrl
