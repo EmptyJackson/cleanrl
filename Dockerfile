@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.4.2-runtime-ubuntu20.04
+FROM nvidia/cuda:11.4.3-cudnn8-devel-ubuntu20.04
 
 # install ubuntu dependencies
 ENV DEBIAN_FRONTEND=noninteractive 
@@ -8,11 +8,10 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # install python dependencies
 RUN mkdir cleanrl_utils && touch cleanrl_utils/__init__.py
-ARG $ENV_REQS
-RUN pip install -r $ENV_REQS
-ARG $JAX_REQS
-RUN pip install -r $JAX_REQS
-RUN pip install --upgrade "jax[cuda]==0.3.17" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+COPY ./requirements/ /requirements
+RUN pip install -r /requirements/requirements-envpool.txt
+RUN pip install -r /requirements/requirements-jax.txt
+RUN pip install --upgrade "jax[cuda11_pip]==0.4.7" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 # install mujoco_py
 RUN apt-get -y install wget unzip software-properties-common \
@@ -20,8 +19,8 @@ RUN apt-get -y install wget unzip software-properties-common \
     libgl1-mesa-glx \
     libglew-dev \
     libosmesa6-dev patchelf
-RUN poetry install -E "atari mujoco_py"
-RUN poetry run python -c "import mujoco_py"
+# RUN poetry install -E "atari mujoco_py"
+# RUN poetry run python -c "import mujoco_py"
 
 COPY entrypoint.sh /usr/local/bin/
 RUN chmod 777 /usr/local/bin/entrypoint.sh
