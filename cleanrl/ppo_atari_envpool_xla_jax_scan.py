@@ -84,6 +84,8 @@ class Args:
     """coefficient of the value function"""
     max_grad_norm: float = 0.5
     """the maximum norm for the gradient clipping"""
+    b2: float = 0.999
+    """The b2 value for the optimizer"""
     target_kl: float = None
     """the target KL divergence threshold"""
     reset_type: str = "None"
@@ -275,7 +277,7 @@ if __name__ == "__main__":
         tx=optax.chain(
             optax.clip_by_global_norm(args.max_grad_norm),
             optax.inject_hyperparams(optax.adam)(
-                learning_rate=linear_schedule if args.anneal_lr else args.learning_rate, eps=1e-5
+                learning_rate=linear_schedule if args.anneal_lr else args.learning_rate, eps=1e-5, b2=args.b2
             ),
         ),
     )
