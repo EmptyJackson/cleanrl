@@ -242,7 +242,6 @@ if __name__ == "__main__":
             "charts/SPS",
             "charts/SPS_update",
         ],
-        seed_id=args.seed,
         model_type="jax",
         config_dict=asdict(args),
 
