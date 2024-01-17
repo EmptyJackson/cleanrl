@@ -6,6 +6,7 @@ from dataclasses import dataclass, asdict
 from functools import partial
 from typing import Sequence
 from mle_logging import MLELogger
+import uuid
 
 import envpool
 import flax
@@ -225,8 +226,9 @@ if __name__ == "__main__":
     #         save_code=True,
     #         mode=args.wandb_mode,
     #     )
+    rand_id = str(uuid.uuid4())[:6]
     logger = MLELogger(
-        experiment_dir=f"{run_name}/",
+        experiment_dir=f"{run_name}_{rand_id}/",
         time_to_track=["steps", "global_step"],
         what_to_track=[
             "charts/avg_episodic_return",
@@ -643,16 +645,16 @@ if __name__ == "__main__":
         print(f"model saved to {model_path}")
         from cleanrl_utils.evals.ppo_envpool_jax_eval import evaluate
 
-        episodic_returns = evaluate(
-            model_path,
-            make_env,
-            args.env_id,
-            eval_episodes=10,
-            run_name=f"{run_name}-eval",
-            Model=(Network, Actor, Critic),
-        )
-        for idx, episodic_return in enumerate(episodic_returns):
-            writer.add_scalar("eval/episodic_return", episodic_return, idx)
+        # episodic_returns = evaluate(
+        #     model_path,
+        #     make_env,
+        #     args.env_id,
+        #     eval_episodes=10,
+        #     run_name=f"{run_name}-eval",
+        #     Model=(Network, Actor, Critic),
+        # )
+        # for idx, episodic_return in enumerate(episodic_returns):
+        #     writer.add_scalar("eval/episodic_return", episodic_return, idx)
 
         if args.upload_model:
             from cleanrl_utils.huggingface import push_to_hub
@@ -669,4 +671,3 @@ if __name__ == "__main__":
             )
 
     envs.close()
-    writer.close()
