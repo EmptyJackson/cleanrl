@@ -231,16 +231,16 @@ if __name__ == "__main__":
         experiment_dir=f"logs/{run_name}_{rand_id}/",
         time_to_track=["steps", "global_step"],
         what_to_track=[
-            "charts/avg_episodic_return",
-            "charts/avg_episodic_length",
-            "charts/learning_rate",
-            "losses/value_loss",
-            "losses/policy_loss",
-            "losses/entropy",
-            "losses/approx_kl",
-            "losses/loss",
-            "charts/SPS",
-            "charts/SPS_update",
+            "avg_episodic_return",
+            "avg_episodic_length",
+            "learning_rate",
+            "value_loss",
+            "policy_loss",
+            "entropy",
+            "approx_kl",
+            "loss",
+            "SPS",
+            "SPS_update",
         ],
         model_type="jax",
         config_dict=asdict(args),
@@ -604,20 +604,20 @@ if __name__ == "__main__":
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         time_tic = {"steps": int(iteration), "global_step": int(global_step)}
         stats_tic = {
-            "charts/avg_episodic_return": float(avg_episodic_return),
-            "charts/avg_episodic_length": float(
+            "avg_episodic_return": float(avg_episodic_return),
+            "avg_episodic_length": float(
                 np.mean(jax.device_get(episode_stats.returned_episode_lengths))
             ),
-            "charts/learning_rate": float(
+            "learning_rate": float(
                 agent_state.opt_state[1].hyperparams["learning_rate"].item()
             ),
-            "losses/value_loss": float(v_loss[-1, -1].item()),
-            "losses/policy_loss": float(pg_loss[-1, -1].item()),
-            "losses/entropy": float(entropy_loss[-1, -1].item()),
-            "losses/approx_kl": float(approx_kl[-1, -1].item()),
-            "losses/loss": float(loss[-1, -1].item()),
-            "charts/SPS": int(global_step / (time.time() - start_time)),
-            "charts/SPS_update": int(
+            "value_loss": float(v_loss[-1, -1].item()),
+            "policy_loss": float(pg_loss[-1, -1].item()),
+            "entropy": float(entropy_loss[-1, -1].item()),
+            "approx_kl": float(approx_kl[-1, -1].item()),
+            "loss": float(loss[-1, -1].item()),
+            "SPS": int(global_step / (time.time() - start_time)),
+            "SPS_update": int(
                 args.num_envs * args.num_steps / (time.time() - iteration_time_start)
             ),
         }
