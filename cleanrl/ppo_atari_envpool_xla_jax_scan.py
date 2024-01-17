@@ -228,7 +228,7 @@ if __name__ == "__main__":
     #     )
     rand_id = str(uuid.uuid4())[:6]
     logger = MLELogger(
-        experiment_dir=f"{run_name}_{rand_id}/",
+        experiment_dir=f"logs/{run_name}_{rand_id}/",
         time_to_track=["steps", "global_step"],
         what_to_track=[
             "charts/avg_episodic_return",
@@ -624,7 +624,6 @@ if __name__ == "__main__":
             ),
         }
         logger.update(time_tic, stats_tic, save=True)
-        logger.save()
         print("SPS:", int(global_step / (time.time() - start_time)))
 
     if args.save_model:
@@ -656,18 +655,18 @@ if __name__ == "__main__":
         # for idx, episodic_return in enumerate(episodic_returns):
         #     writer.add_scalar("eval/episodic_return", episodic_return, idx)
 
-        if args.upload_model:
-            from cleanrl_utils.huggingface import push_to_hub
+        # if args.upload_model:
+        #     from cleanrl_utils.huggingface import push_to_hub
 
-            repo_name = f"{args.env_id}-{args.exp_name}-seed{args.seed}"
-            repo_id = f"{args.hf_entity}/{repo_name}" if args.hf_entity else repo_name
-            push_to_hub(
-                args,
-                episodic_returns,
-                repo_id,
-                "PPO",
-                f"runs/{run_name}",
-                f"videos/{run_name}-eval",
-            )
+        #     repo_name = f"{args.env_id}-{args.exp_name}-seed{args.seed}"
+        #     repo_id = f"{args.hf_entity}/{repo_name}" if args.hf_entity else repo_name
+        #     push_to_hub(
+        #         args,
+        #         episodic_returns,
+        #         repo_id,
+        #         "PPO",
+        #         f"runs/{run_name}",
+        #         f"videos/{run_name}-eval",
+        #    )
 
     envs.close()
