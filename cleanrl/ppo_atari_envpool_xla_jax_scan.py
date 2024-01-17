@@ -226,7 +226,7 @@ if __name__ == "__main__":
     #         mode=args.wandb_mode,
     #     )
     logger = MLELogger(
-        experiment_dir=f"{run_name}/"
+        experiment_dir=f"{run_name}/",
         time_to_track=["steps", "global_step"],
         what_to_track=[
             "charts/avg_episodic_return",
