@@ -60,15 +60,15 @@ ENVS = [
     "Zaxxon-v5",
 ]
 
-LEARNING_RATES = [5e-4, 1e-3, 2e-3]
+LEARNING_RATES = [2e-3, 4e-3, 1e-2]
 
-MAX_GRAD_NORMS = [0.5, 1.0, 5.0, 10.0]
+MAX_GRAD_NORMS = [10.0, 25.0]
 
 SEEDS = [0, 1, 2]
 
-GAE_LAMBDAS = [0.9, 0.95]
+GAE_LAMBDAS = [0.95, 0.98]
 
-UPDATE_EPOCHS = [4, 6, 8]
+UPDATE_EPOCHS = [4]
 
 RESET_TYPE = ["count"]
 
@@ -99,5 +99,5 @@ if __name__ == "__main__":
             run_string += f"--{k}={v} "
         run_strings.append(run_string)
 
-    with open("cleanrl/full_atari_sweep.txt", mode="wt", encoding="utf-8") as f:
+    with open("cleanrl/further_atari_sweep.txt", mode="wt", encoding="utf-8") as f:
         f.write('\n'.join(run_strings))
