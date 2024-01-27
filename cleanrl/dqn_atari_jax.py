@@ -228,7 +228,7 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
         if reset_type == "count":
             new_adam_state = (adam_state[0]._replace(count=0), adam_state[1])
         elif reset_type == "all":
-            new_adam_state = jax.tree_map(jnp.zeros_like, new_adam_state)
+            new_adam_state = jax.tree_map(jnp.zeros_like, adam_state)
         return q_state.replace(opt_state=new_adam_state)
 
     @jax.jit
@@ -331,7 +331,6 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                         q_state.params, q_state.target_params, args.tau
                     )
                 )
-                # TODO reset optimizer
                 q_state = reset_opt(q_state, args.reset_type)
 
     if args.save_model:
