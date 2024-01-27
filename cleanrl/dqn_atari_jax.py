@@ -2,7 +2,7 @@
 import os
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 os.environ[
     "XLA_PYTHON_CLIENT_MEM_FRACTION"
@@ -24,6 +24,9 @@ from stable_baselines3.common.atari_wrappers import (
     MaxAndSkipEnv,
     NoopResetEnv,
 )
+import functools
+from mle_logging import MLELogger
+import uuid
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 
@@ -78,6 +81,7 @@ class Args:
     """timestep to start learning"""
     train_frequency: int = 4
     """the frequency of training"""
+    reset_type: str = "none"
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -148,22 +152,31 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
     args = tyro.cli(Args)
     assert args.num_envs == 1, "vectorized envs are not supported at the moment"
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-    if args.track:
-        import wandb
+    # if args.track:
+    #     import wandb
 
-        wandb.init(
-            project=args.wandb_project_name,
-            entity=args.wandb_entity,
-            sync_tensorboard=True,
-            config=vars(args),
-            name=run_name,
-            monitor_gym=True,
-            save_code=True,
-        )
-    writer = SummaryWriter(f"runs/{run_name}")
-    writer.add_text(
-        "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+    #     wandb.init(
+    #         project=args.wandb_project_name,
+    #         entity=args.wandb_entity,
+    #         sync_tensorboard=True,
+    #         config=vars(args),
+    #         name=run_name,
+    #         monitor_gym=True,
+    #         save_code=True,
+    #     )
+    rand_id = str(uuid.uuid4())[:6]
+    logger = MLELogger(
+        experiment_dir=f"logs/{run_name}_{rand_id}",
+        time_to_track=["global_step"],
+        what_to_track=[
+            "avg_episodic_return",
+            "avg_episodic_length",
+            "loss",
+            "q_values",
+            "SPS",
+        ],
+        model_type="jax",
+        config_dict=asdict(args),
     )
 
     # TRY NOT TO MODIFY: seeding
@@ -174,9 +187,14 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name) for i in range(args.num_envs)]
+        [
+            make_env(args.env_id, args.seed + i, i, args.capture_video, run_name)
+            for i in range(args.num_envs)
+        ]
     )
-    assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
+    assert isinstance(
+        envs.single_action_space, gym.spaces.Discrete
+    ), "only discrete action space is supported"
 
     obs, _ = envs.reset(seed=args.seed)
 
@@ -191,7 +209,9 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
 
     q_network.apply = jax.jit(q_network.apply)
     # This step is not necessary as init called on same observation and key will always lead to same initializations
-    q_state = q_state.replace(target_params=optax.incremental_update(q_state.params, q_state.target_params, 1))
+    q_state = q_state.replace(
+        target_params=optax.incremental_update(q_state.params, q_state.target_params, 1)
+    )
 
     rb = ReplayBuffer(
         args.buffer_size,
@@ -202,18 +222,33 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
         handle_timeout_termination=False,
     )
 
+    @functools.partial(jax.jit, static_argnums=(1,))
+    def reset_opt(q_state, reset_type):
+        adam_state = q_state.opt_state
+        if reset_type == "count":
+            new_adam_state = (adam_state[0]._replace(count=0), adam_state[1])
+        elif reset_type == "all":
+            new_adam_state = jax.tree_map(jnp.zeros_like, new_adam_state)
+        return q_state.replace(opt_state=new_adam_state)
+
     @jax.jit
     def update(q_state, observations, actions, next_observations, rewards, dones):
-        q_next_target = q_network.apply(q_state.target_params, next_observations)  # (batch_size, num_actions)
+        q_next_target = q_network.apply(
+            q_state.target_params, next_observations
+        )  # (batch_size, num_actions)
         q_next_target = jnp.max(q_next_target, axis=-1)  # (batch_size,)
         next_q_value = rewards + (1 - dones) * args.gamma * q_next_target
 
         def mse_loss(params):
             q_pred = q_network.apply(params, observations)  # (batch_size, num_actions)
-            q_pred = q_pred[jnp.arange(q_pred.shape[0]), actions.squeeze()]  # (batch_size,)
+            q_pred = q_pred[
+                jnp.arange(q_pred.shape[0]), actions.squeeze()
+            ]  # (batch_size,)
             return ((q_pred - next_q_value) ** 2).mean(), q_pred
 
-        (loss_value, q_pred), grads = jax.value_and_grad(mse_loss, has_aux=True)(q_state.params)
+        (loss_value, q_pred), grads = jax.value_and_grad(mse_loss, has_aux=True)(
+            q_state.params
+        )
         q_state = q_state.apply_gradients(grads=grads)
         return loss_value, q_pred, q_state
 
@@ -223,9 +258,16 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
     obs, _ = envs.reset(seed=args.seed)
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put action logic here
-        epsilon = linear_schedule(args.start_e, args.end_e, args.exploration_fraction * args.total_timesteps, global_step)
+        epsilon = linear_schedule(
+            args.start_e,
+            args.end_e,
+            args.exploration_fraction * args.total_timesteps,
+            global_step,
+        )
         if random.random() < epsilon:
-            actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+            actions = np.array(
+                [envs.single_action_space.sample() for _ in range(envs.num_envs)]
+            )
         else:
             q_values = q_network.apply(q_state.params, obs)
             actions = q_values.argmax(axis=-1)
@@ -238,9 +280,15 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
         if "final_info" in infos:
             for info in infos["final_info"]:
                 if info and "episode" in info:
-                    print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-                    writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                    writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+                    print(
+                        f"global_step={global_step}, episodic_return={info['episode']['r']}"
+                    )
+                    time_tic = {"global_step": int(global_step)}
+                    stats_tic = {
+                        "episodic_return": info["episode"]["r"],
+                        "episodic_length": info["episode"]["l"],
+                    }
+                    logger.update(time_tic, stats_tic, save=True)
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -267,16 +315,24 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                 )
 
                 if global_step % 100 == 0:
-                    writer.add_scalar("losses/td_loss", jax.device_get(loss), global_step)
-                    writer.add_scalar("losses/q_values", jax.device_get(old_val).mean(), global_step)
+                    time_tic = {"global_step": int(global_step)}
+                    stats_tic = {
+                        "td_loss": jax.device_get(loss),
+                        "q_values": jax.device_get(old_val).mean(),
+                        "SPS": int(global_step / (time.time() - start_time)),
+                    }
+                    logger.update(time_tic, stats_tic, save=True)
                     print("SPS:", int(global_step / (time.time() - start_time)))
-                    writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
             # update target network
             if global_step % args.target_network_frequency == 0:
                 q_state = q_state.replace(
-                    target_params=optax.incremental_update(q_state.params, q_state.target_params, args.tau)
+                    target_params=optax.incremental_update(
+                        q_state.params, q_state.target_params, args.tau
+                    )
                 )
+                # TODO reset optimizer
+                q_state = reset_opt(q_state, args.reset_type)
 
     if args.save_model:
         model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
@@ -294,15 +350,21 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
             Model=QNetwork,
             epsilon=0.05,
         )
-        for idx, episodic_return in enumerate(episodic_returns):
-            writer.add_scalar("eval/episodic_return", episodic_return, idx)
+        # for idx, episodic_return in enumerate(episodic_returns):
+        #     writer.add_scalar("eval/episodic_return", episodic_return, idx)
 
         if args.upload_model:
             from cleanrl_utils.huggingface import push_to_hub
 
             repo_name = f"{args.env_id}-{args.exp_name}-seed{args.seed}"
             repo_id = f"{args.hf_entity}/{repo_name}" if args.hf_entity else repo_name
-            push_to_hub(args, episodic_returns, repo_id, "DQN", f"runs/{run_name}", f"videos/{run_name}-eval")
+            push_to_hub(
+                args,
+                episodic_returns,
+                repo_id,
+                "DQN",
+                f"runs/{run_name}",
+                f"videos/{run_name}-eval",
+            )
 
     envs.close()
-    writer.close()

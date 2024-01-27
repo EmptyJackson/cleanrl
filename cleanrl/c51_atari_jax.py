@@ -182,7 +182,6 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
             "loss",
             "q_values",
             "SPS",
-            "eval_episodic_return",
         ],
         model_type="jax",
         config_dict=asdict(args)
@@ -377,7 +376,6 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                         q_state.params, q_state.target_params, 1
                     )
                 )
-                # TODO reset the optimizer.
                 q_state = reset_opt(q_state, args.reset_type)
 
 
