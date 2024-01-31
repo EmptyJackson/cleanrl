@@ -86,6 +86,7 @@ class Args:
     train_frequency: int = 4
     """the frequency of training"""
     reset_type: str = "none"
+    save_frequency: int = 10000
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -290,10 +291,10 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
     def reset_opt(q_state, reset_type):
         adam_state = q_state.opt_state
         if reset_type == "count":
-            new_adam_state = (adam_state[0]._replace(count=0), adam_state[1])
+            adam_state = (adam_state[0]._replace(count=0), adam_state[1])
         elif reset_type == "all":
-            new_adam_state = jax.tree_map(jnp.zeros_like, adam_state)
-        return q_state.replace(opt_state=new_adam_state)    
+            adam_state = jax.tree_map(jnp.zeros_like, adam_state)
+        return q_state.replace(opt_state=adam_state)
 
     start_time = time.time()
 
@@ -331,7 +332,7 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                         "episodic_return": info["episode"]["r"],
                         "episodic_length": info["episode"]["l"]
                     }
-                    logger.update(time_tic, stats_tic, save=True)
+                    logger.update(time_tic, stats_tic)
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -365,7 +366,7 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                     "q_values": jax.device_get(old_val.mean()),
                     "SPS": int(global_step / (time.time() - start_time))
                 }
-                logger.update(time_tic, stats_tic, save=True)
+                logger.update(time_tic, stats_tic)
                 print("SPS:", int(global_step / (time.time() - start_time)))
                 
 
@@ -377,6 +378,8 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                     )
                 )
                 q_state = reset_opt(q_state, args.reset_type)
+            if global_step % args.save_frequency == 0 and global_step != 0:
+                logger.save()
 
 
     if args.save_model:
