@@ -77,7 +77,7 @@ class Args:
     """the ending epsilon for exploration"""
     exploration_fraction: float = 0.10
     """the fraction of `total-timesteps` it takes from start-e to go end-e"""
-    learning_starts: int = 80000
+    learning_starts: int = 80
     """timestep to start learning"""
     train_frequency: int = 4
     """the frequency of training"""
@@ -270,7 +270,7 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                 [envs.single_action_space.sample() for _ in range(envs.num_envs)]
             )
         else:
-            q_values = q_network.apply(q_state.params, obs)
+            q_values = jax.jit(q_network.apply)(q_state.params, obs)
             actions = q_values.argmax(axis=-1)
             actions = jax.device_get(actions)
 
