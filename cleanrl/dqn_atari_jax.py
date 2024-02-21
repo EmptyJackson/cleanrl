@@ -135,6 +135,44 @@ def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
     return max(slope * t + start_e, end_e)
 
 
+
+def compute_tree_norm(tree):
+    return jnp.sqrt(
+        sum(jnp.sum(jnp.square(x)) for x in jax.tree_util.tree_leaves(tree))
+    )
+
+
+def compute_tree_max(tree):
+    return jax.tree_util.tree_reduce(jnp.maximum, jax.tree_map(jnp.max, tree))
+
+
+def compute_tree_mean(tree):
+    tree_sum = sum(jnp.sum(x) for x in jax.tree_util.tree_leaves(tree))
+    tree_elems = compute_tree_num_elems(tree)
+    return tree_sum / tree_elems
+
+
+def compute_tree_num_elems(tree):
+    return sum(jnp.size(x) for x in jax.tree_util.tree_leaves(tree))
+
+
+def compute_tree_std(tree):
+    mean = compute_tree_mean(tree)
+    return jnp.sqrt(
+        sum(jnp.sum(jnp.square(x - mean)) for x in jax.tree_util.tree_leaves(tree))
+        / compute_tree_num_elems(tree)
+    )
+
+
+def compute_tree_cosine_similarity(tree, other_tree):
+    prod_tree = jax.tree_map(jnp.multiply, tree, other_tree)
+    tree_norm = compute_tree_norm(tree)
+    other_tree_norm = compute_tree_norm(other_tree)
+    return sum(jnp.sum(x) for x in jax.tree_util.tree_leaves(prod_tree)) / (
+        tree_norm * other_tree_norm
+    )
+
+
 if __name__ == "__main__":
     import stable_baselines3 as sb3
 
@@ -214,8 +252,19 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
             return ((q_pred - next_q_value) ** 2).mean(), q_pred
 
         (loss_value, q_pred), grads = jax.value_and_grad(mse_loss, has_aux=True)(q_state.params)
+        update = q_state.tx.update(
+            grads, q_state.opt_state, q_state.params
+        )[0]
+        update_metrics = {
+            "grad_norm": compute_tree_norm(grads),
+            "max_grad": compute_tree_max(grads),
+            "grad_std": compute_tree_std(grads),
+            "update_norm": compute_tree_norm(update),
+            "max_update": compute_tree_max(update),
+            "update_std": compute_tree_std(update),
+        }
         q_state = q_state.apply_gradients(grads=grads)
-        return loss_value, q_pred, q_state
+        return loss_value, q_pred, q_state, update_metrics
 
     start_time = time.time()
 
@@ -257,7 +306,7 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
             if global_step % args.train_frequency == 0:
                 data = rb.sample(args.batch_size)
                 # perform a gradient-descent step
-                loss, old_val, q_state = update(
+                loss, old_val, q_state, update_metrics = update(
                     q_state,
                     data.observations.numpy(),
                     data.actions.numpy(),
@@ -266,6 +315,8 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                     data.dones.flatten().numpy(),
                 )
 
+                for k, v in update_metrics.items():
+                    writer.add_scalar(f"update_metrics/{k}", v, global_step)
                 if global_step % 100 == 0:
                     writer.add_scalar("losses/td_loss", jax.device_get(loss), global_step)
                     writer.add_scalar("losses/q_values", jax.device_get(old_val).mean(), global_step)
