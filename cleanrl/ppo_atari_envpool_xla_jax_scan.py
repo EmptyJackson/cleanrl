@@ -180,6 +180,10 @@ class Actor(nn.Module):
         )(x)
 
 
+def compute_tree_histogram(tree):
+    return jax.tree_map(partial(jnp.histogram, bins=32), tree)
+
+
 @flax.struct.dataclass
 class AgentParams:
     network_params: flax.core.FrozenDict
@@ -487,6 +491,11 @@ if __name__ == "__main__":
                     minibatch.advantages,
                     minibatch.returns,
                 )
+                update = agent_state.tx.update(
+                    grads, agent_state.opt_state, agent_state.params
+                )[0]
+                grad_histogram = compute_tree_histogram(grads)
+                update_histogram = compute_tree_histogram(update)
                 agent_state = agent_state.apply_gradients(grads=grads)
                 return agent_state, (
                     loss,
@@ -494,6 +503,8 @@ if __name__ == "__main__":
                     v_loss,
                     entropy_loss,
                     approx_kl,
+                    grad_histogram,
+                    update_histogram,
                     grads,
                 )
 
@@ -503,6 +514,8 @@ if __name__ == "__main__":
                 v_loss,
                 entropy_loss,
                 approx_kl,
+                grad_histogram,
+                update_histogram,
                 grads,
             ) = jax.lax.scan(update_minibatch, agent_state, shuffled_storage)
             return (agent_state, key), (
@@ -511,6 +524,8 @@ if __name__ == "__main__":
                 v_loss,
                 entropy_loss,
                 approx_kl,
+                grad_histogram,
+                update_histogram,
                 grads,
             )
 
@@ -521,11 +536,13 @@ if __name__ == "__main__":
             v_loss,
             entropy_loss,
             approx_kl,
+            grad_histogram,
+            update_histogram,
             grads,
         ) = jax.lax.scan(
             update_epoch, (agent_state, key), (), length=args.update_epochs
         )
-        return agent_state, loss, pg_loss, v_loss, entropy_loss, approx_kl, key
+        return agent_state, loss, pg_loss, v_loss, entropy_loss, approx_kl, grad_histogram, update_histogram, key
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -591,7 +608,7 @@ if __name__ == "__main__":
         )
         global_step += args.num_steps * args.num_envs
         storage = compute_gae(agent_state, next_obs, next_done, storage)
-        agent_state, loss, pg_loss, v_loss, entropy_loss, approx_kl, key = update_ppo(
+        agent_state, loss, pg_loss, v_loss, entropy_loss, approx_kl, grad_histogram, update_histogram, key = update_ppo(
             agent_state,
             storage,
             key,
@@ -622,6 +639,8 @@ if __name__ == "__main__":
             ),
         }
         logger.update(time_tic, stats_tic, save=True)
+        logger.save_extra(grad_histogram, f"grad_histogram_{int(iteration)}.pkl")
+        logger.save_extra(update_histogram, f"update_histogram_{int(iteration)}.pkl")
         print("SPS:", int(global_step / (time.time() - start_time)))
 
     if args.save_model:
