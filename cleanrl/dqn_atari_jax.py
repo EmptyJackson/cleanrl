@@ -3,6 +3,7 @@ import os
 import random
 import time
 from dataclasses import dataclass, asdict
+from functools import partial
 
 os.environ[
     "XLA_PYTHON_CLIENT_MEM_FRACTION"
@@ -77,12 +78,14 @@ class Args:
     """the ending epsilon for exploration"""
     exploration_fraction: float = 0.10
     """the fraction of `total-timesteps` it takes from start-e to go end-e"""
-    learning_starts: int = 80000
+    learning_starts: int = 8
     """timestep to start learning"""
     train_frequency: int = 4
     """the frequency of training"""
     reset_type: str = "none"
     save_frequency: int = 10000
+    track_metrics: bool = False
+    """whether to track advanced metrics"""
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -269,8 +272,8 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
             adam_state = jax.tree_map(jnp.zeros_like, adam_state)
         return q_state.replace(opt_state=adam_state)
 
-    @jax.jit
-    def update(q_state, observations, actions, next_observations, rewards, dones):
+    @partial(jax.jit, static_argnums=(6,))
+    def update(q_state, observations, actions, next_observations, rewards, dones, track_metrics):
         q_next_target = q_network.apply(
             q_state.target_params, next_observations
         )  # (batch_size, num_actions)
@@ -290,14 +293,17 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
         update = q_state.tx.update(
             grads, q_state.opt_state, q_state.params
         )[0]
-        update_metrics = {
-            "grad_norm": compute_tree_norm(grads),
-            "max_grad": compute_tree_max(grads),
-            "grad_std": compute_tree_std(grads),
-            "update_norm": compute_tree_norm(update),
-            "max_update": compute_tree_max(update),
-            "update_std": compute_tree_std(update),
-        }
+        if track_metrics:
+            update_metrics = {
+                "grad_norm": compute_tree_norm(grads),
+                "max_grad": compute_tree_max(grads),
+                "grad_std": compute_tree_std(grads),
+                "update_norm": compute_tree_norm(update),
+                "max_update": compute_tree_max(update),
+                "update_std": compute_tree_std(update),
+            }
+        else:
+            update_metrics = {}
         q_state = q_state.apply_gradients(grads=grads)
         return loss_value, q_pred, q_state, update_metrics
 
@@ -361,6 +367,7 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                     data.next_observations.numpy(),
                     data.rewards.flatten().numpy(),
                     data.dones.flatten().numpy(),
+                    args.track_metrics,
                 )
 
                 time_tic = {"global_step": int(global_step)}
