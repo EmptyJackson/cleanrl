@@ -1,0 +1,15 @@
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=0 --reset_type=count --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=0 --reset_type=all --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=0 --reset_type=none --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=1 --reset_type=count --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=1 --reset_type=all --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=1 --reset_type=none --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=2 --reset_type=count --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=2 --reset_type=all --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=2 --reset_type=none --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=3 --reset_type=count --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=3 --reset_type=all --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=3 --reset_type=none --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=4 --reset_type=count --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=4 --reset_type=all --env_id=SeaquestNoFrameskip-v4 
+python dqn_atari_jax.py --total-timesteps=30000000 --learning_rate=0.0001 --seed=4 --reset_type=none --env_id=SeaquestNoFrameskip-v4 
