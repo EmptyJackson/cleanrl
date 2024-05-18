@@ -85,7 +85,7 @@ class Args:
     log_frequency: int = 250
     """number of train steps per log"""
     reset_type: str = "none"
-    save_frequency: int = 10000
+    save_frequency: int = 50000
     track_metrics: bool = False
     """whether to track advanced metrics"""
 
