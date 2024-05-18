@@ -1,7 +1,7 @@
-FROM nvidia/cuda:11.4.3-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 # install ubuntu dependencies
-ENV DEBIAN_FRONTEND=noninteractive 
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get -y install python3-pip xvfb ffmpeg git build-essential python-opengl
 RUN ln -s /usr/bin/python3 /usr/bin/python
@@ -9,7 +9,8 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 # install python dependencies
 RUN mkdir cleanrl_utils && touch cleanrl_utils/__init__.py
 COPY ./requirements/ /requirements
-RUN pip install -r /requirements/requirements-envpool.txt
+# RUN pip install -r /requirements/requirements-envpool.txt
+RUN pip install -r /requirements/requirements-atari.txt
 RUN pip install -r /requirements/requirements-jax.txt
 RUN pip install --upgrade "jax[cuda11_pip]==0.4.7" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
