@@ -3,7 +3,7 @@ FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 # install ubuntu dependencies
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
-    apt-get -y install python3-pip xvfb ffmpeg git build-essential python-opengl
+    apt-get -y install python3-pip xvfb ffmpeg git build-essential
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # install python dependencies
