@@ -13,6 +13,7 @@ COPY ./requirements/ /requirements
 RUN pip install -r /requirements/requirements-atari.txt
 RUN pip install -r /requirements/requirements-jax.txt
 RUN pip install --upgrade "jax[cuda11_pip]==0.4.7" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+RUN pip install mle_logging
 
 # install mujoco_py
 RUN apt-get -y install wget unzip software-properties-common \
