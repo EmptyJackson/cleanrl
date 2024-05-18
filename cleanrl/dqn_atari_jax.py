@@ -82,6 +82,8 @@ class Args:
     """timestep to start learning"""
     train_frequency: int = 4
     """the frequency of training"""
+    log_frequency: int = 250
+    """number of train steps per log"""
     reset_type: str = "none"
     save_frequency: int = 10000
     track_metrics: bool = False
@@ -310,6 +312,7 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
     start_time = time.time()
 
     # TRY NOT TO MODIFY: start the game
+    log_steps = args.log_frequency
     obs, _ = envs.reset(seed=args.seed)
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put action logic here
@@ -370,11 +373,13 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                     args.track_metrics,
                 )
 
-                time_tic = {"global_step": int(global_step)}
-                stats_tic = {
-                    f"update_metrics/{k}": v for k, v in update_metrics.items()
-                }
-                if global_step % 100 == 0:
+                log_steps += 1
+                if log_steps >= args.log_frequency:
+                    time_tic = {"global_step": int(global_step)}
+                    stats_tic = {
+                        f"update_metrics/{k}": v for k, v in update_metrics.items()
+                    }
+                    # if global_step % 100 == 0:
                     stats_tic.update(
                         {
                             "td_loss": jax.device_get(loss),
@@ -383,7 +388,8 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                         }
                     )
                     print("SPS:", int(global_step / (time.time() - start_time)))
-                logger.update(time_tic, stats_tic)
+                    logger.update(time_tic, stats_tic)
+                    log_steps = 0
 
             # update target network
             if global_step % args.target_network_frequency == 0:
