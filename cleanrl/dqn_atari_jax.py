@@ -70,6 +70,7 @@ class Args:
     """the target network update rate"""
     target_network_frequency: int = 1000
     """the timesteps it takes to update the target network"""
+    reset_frequency: int = 1000
     batch_size: int = 32
     """the batch size of sample from the reply memory"""
     start_e: float = 1
@@ -398,6 +399,7 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                         q_state.params, q_state.target_params, args.tau
                     )
                 )
+            if global_step % args.reset_frequency == 0:
                 q_state = reset_opt(q_state, args.reset_type)
 
             if global_step % args.save_frequency == 0 and global_step != 0:
